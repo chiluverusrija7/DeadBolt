@@ -6,8 +6,9 @@ DEADBOLT = build/deadbolt
 PROCESS = build/process_generation
 VECTOR_TEST = build/vector_test
 STRING_TEST = build/string_test
+PARSER_TEST = build/parser_test
 
-all: $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST)
+all: $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST) $(PARSER_TEST)
 
 $(DEADBOLT): src/deadbolt.c
 	$(CC) $(CFLAGS) $(INCLUDES) src/deadbolt.c -o $(DEADBOLT)
@@ -21,6 +22,9 @@ $(VECTOR_TEST): src/vector.c src/vector_test.c include/vector.h
 $(STRING_TEST): src/string.c src/string_test.c include/dynamic_string.h
 	$(CC) $(CFLAGS) $(INCLUDES) src/string.c src/string_test.c -o $(STRING_TEST)
 
+$(PARSER_TEST): src/parser.c src/parser_test.c include/parser.h
+	$(CC) $(CFLAGS) $(INCLUDES) src/parser.c src/parser_test.c -o $(PARSER_TEST)
+
 run: $(DEADBOLT)
 	./$(DEADBOLT)
 
@@ -33,5 +37,8 @@ run-vector: $(VECTOR_TEST)
 run-string: $(STRING_TEST)
 	./$(STRING_TEST)
 
+run-parser: $(PARSER_TEST)
+	./$(PARSER_TEST)
+
 clean:
-	rm -f $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST)
+	rm -f $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST) $(PARSER_TEST)
