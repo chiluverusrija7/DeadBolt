@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
+
+#include "parser.h"
+#include "executor.h"
 
 #define MAX_INPUT 1024
 
@@ -35,47 +35,29 @@ int main(void)
             continue;
         }
 
-        pid_t pid = fork();
+        Pipeline pipeline;
 
-        if (pid < 0)
+        pipeline_init(&pipeline);
+
+        if (!parse_pipeline(input, &pipeline))
         {
-            perror("fork");
+            printf("Parsing failed.\n");
+            pipeline_free(&pipeline);
             continue;
         }
 
-        if (pid == 0)
+        if (pipeline.count != 1)
         {
-            char *args[MAX_INPUT];
-            int i = 0;
-
-            char *token = strtok(input, " ");
-
-            while (token != NULL && i < MAX_INPUT - 1)
-            {
-                args[i++] = token;
-                token = strtok(NULL, " ");
-            }
-
-            args[i] = NULL;
-
-            execvp(args[0], args);
-
-            perror("execvp");
-            exit(EXIT_FAILURE);
+            printf("Pipelines are not supported yet.\n");
+            pipeline_free(&pipeline);
+            continue;
         }
-        else
-        {
-            int status;
 
-            waitpid(pid, &status, 0);
+        int status = execute_command(&pipeline.commands[0]);
 
-            if (WIFEXITED(status))
-            {
-                printf("Process %d exited with status %d\n",
-                       pid,
-                       WEXITSTATUS(status));
-            }
-        }
+        printf("Exit status: %d\n", status);
+
+        pipeline_free(&pipeline);
     }
 
     return 0;

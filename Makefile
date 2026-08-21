@@ -7,11 +7,12 @@ PROCESS = build/process_generation
 VECTOR_TEST = build/vector_test
 STRING_TEST = build/string_test
 PARSER_TEST = build/parser_test
+EXECUTOR_TEST = build/executor_test
 
-all: $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST) $(PARSER_TEST)
+all: $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST) $(PARSER_TEST) $(EXECUTOR_TEST)
 
-$(DEADBOLT): src/deadbolt.c
-	$(CC) $(CFLAGS) $(INCLUDES) src/deadbolt.c -o $(DEADBOLT)
+$(DEADBOLT): src/deadbolt.c src/parser.c src/executor.c include/parser.h include/executor.h
+	$(CC) $(CFLAGS) $(INCLUDES) src/deadbolt.c src/parser.c src/executor.c -o $(DEADBOLT)
 
 $(PROCESS): src/process_generation.c
 	$(CC) $(CFLAGS) $(INCLUDES) src/process_generation.c -o $(PROCESS)
@@ -24,6 +25,9 @@ $(STRING_TEST): src/string.c src/string_test.c include/dynamic_string.h
 
 $(PARSER_TEST): src/parser.c src/parser_test.c include/parser.h
 	$(CC) $(CFLAGS) $(INCLUDES) src/parser.c src/parser_test.c -o $(PARSER_TEST)
+
+$(EXECUTOR_TEST): src/parser.c src/executor.c src/executor_test.c include/parser.h include/executor.h
+	$(CC) $(CFLAGS) $(INCLUDES) src/parser.c src/executor.c src/executor_test.c -o $(EXECUTOR_TEST)
 
 run: $(DEADBOLT)
 	./$(DEADBOLT)
@@ -40,5 +44,8 @@ run-string: $(STRING_TEST)
 run-parser: $(PARSER_TEST)
 	./$(PARSER_TEST)
 
+run-executor: $(EXECUTOR_TEST)
+	./$(EXECUTOR_TEST)
+
 clean:
-	rm -f $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST) $(PARSER_TEST)
+	rm -f $(DEADBOLT) $(PROCESS) $(VECTOR_TEST) $(STRING_TEST) $(PARSER_TEST) $(EXECUTOR_TEST)
