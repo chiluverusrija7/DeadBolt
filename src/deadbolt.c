@@ -46,14 +46,16 @@ int main(void)
             continue;
         }
 
-        if (pipeline.count != 1)
-        {
-            printf("Pipelines are not supported yet.\n");
-            pipeline_free(&pipeline);
-            continue;
-        }
+        int status;
 
-        int status = execute_command(&pipeline.commands[0]);
+        if (pipeline.count == 1)
+        {
+            status = execute_command(&pipeline.commands[0]);
+        }
+        else
+        {
+            status = execute_pipeline(&pipeline);
+        }
 
         printf("Exit status: %d\n", status);
 
