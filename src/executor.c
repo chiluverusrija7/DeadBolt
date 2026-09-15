@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "executor.h"
+#include "signals.h"
 
 int execute_command(const Command *command)
 {
@@ -44,16 +45,27 @@ int execute_command(const Command *command)
 
     if (pid == 0)
     {
+        /*
+         * The shell ignores Ctrl-C and Ctrl-Z.
+         * Restore normal signal behavior in the child.
+         */
+        restore_child_signals();
+
         execvp(argv[0], argv);
 
         perror("execvp");
+
         free(argv);
         _exit(127);
     }
 
     int status;
 
-    if (waitpid(pid, &status, 0) < 0)
+    /*
+     * WUNTRACED allows waitpid() to report when the
+     * child is stopped by Ctrl-Z.
+     */
+    if (waitpid(pid, &status, WUNTRACED) < 0)
     {
         perror("waitpid");
         free(argv);
@@ -72,6 +84,17 @@ int execute_command(const Command *command)
         return 128 + WTERMSIG(status);
     }
 
+    if (WIFSTOPPED(status))
+    {
+        printf(
+            "\nProcess %d stopped by signal %d\n",
+            pid,
+            WSTOPSIG(status)
+        );
+
+        return 128 + WSTOPSIG(status);
+    }
+
     return -1;
 }
 
@@ -83,7 +106,7 @@ int execute_pipeline(const Pipeline *pipeline)
     }
 
     /*
-     * For N commands, we need N-1 pipes.
+     * N commands require N-1 pipes.
      */
     size_t pipe_count = pipeline->count - 1;
 
@@ -134,7 +157,7 @@ int execute_pipeline(const Pipeline *pipeline)
     }
 
     /*
-     * Create one child for each command.
+     * Create one child for every command.
      */
     for (size_t i = 0; i < pipeline->count; i++)
     {
@@ -157,14 +180,21 @@ int execute_pipeline(const Pipeline *pipeline)
 
             free(pids);
             free(pipes);
+
             return -1;
         }
 
         if (pid == 0)
         {
             /*
-             * If this is not the first command,
-             * connect stdin to previous pipe.
+             * Restore normal signal behavior in the
+             * pipeline child.
+             */
+            restore_child_signals();
+
+            /*
+             * Every command except the first reads
+             * from the previous pipe.
              */
             if (i > 0)
             {
@@ -176,8 +206,8 @@ int execute_pipeline(const Pipeline *pipeline)
             }
 
             /*
-             * If this is not the last command,
-             * connect stdout to next pipe.
+             * Every command except the last writes
+             * to the next pipe.
              */
             if (i < pipeline->count - 1)
             {
@@ -189,7 +219,7 @@ int execute_pipeline(const Pipeline *pipeline)
             }
 
             /*
-             * Close all pipe descriptors in child.
+             * Close all pipe descriptors after dup2().
              */
             for (size_t j = 0; j < pipe_count; j++)
             {
@@ -236,6 +266,9 @@ int execute_pipeline(const Pipeline *pipeline)
             _exit(127);
         }
 
+        /*
+         * Parent stores the child PID.
+         */
         pids[i] = pid;
     }
 
@@ -251,13 +284,15 @@ int execute_pipeline(const Pipeline *pipeline)
     int final_status = 0;
 
     /*
-     * Wait for every command.
+     * Wait for all pipeline children.
+     *
+     * WUNTRACED allows us to detect Ctrl-Z.
      */
     for (size_t i = 0; i < pipeline->count; i++)
     {
         int status;
 
-        if (waitpid(pids[i], &status, 0) < 0)
+        if (waitpid(pids[i], &status, WUNTRACED) < 0)
         {
             perror("waitpid");
             final_status = -1;
@@ -265,7 +300,7 @@ int execute_pipeline(const Pipeline *pipeline)
         }
 
         /*
-         * Shell returns the status of the last command.
+         * Return the status of the last command.
          */
         if (i == pipeline->count - 1)
         {
@@ -276,6 +311,16 @@ int execute_pipeline(const Pipeline *pipeline)
             else if (WIFSIGNALED(status))
             {
                 final_status = 128 + WTERMSIG(status);
+            }
+            else if (WIFSTOPPED(status))
+            {
+                printf(
+                    "\nProcess %d stopped by signal %d\n",
+                    pids[i],
+                    WSTOPSIG(status)
+                );
+
+                final_status = 128 + WSTOPSIG(status);
             }
         }
     }

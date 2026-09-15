@@ -3,11 +3,20 @@
 
 #include "parser.h"
 #include "executor.h"
+#include "signals.h"
 
 #define MAX_INPUT 1024
 
 int main(void)
 {
+    /*
+     * Install shell signal handlers.
+     *
+     * The shell ignores Ctrl-C and Ctrl-Z,
+     * while child processes restore default behavior.
+     */
+    install_signal_handlers();
+
     char input[MAX_INPUT];
 
     printf("DEADBOLT\n");
@@ -48,6 +57,13 @@ int main(void)
 
         int status;
 
+        /*
+         * Single command:
+         *     ls
+         *
+         * Multiple commands:
+         *     ls | grep c | wc -l
+         */
         if (pipeline.count == 1)
         {
             status = execute_command(&pipeline.commands[0]);
